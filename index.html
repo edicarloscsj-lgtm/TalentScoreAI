@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TalentScore AI | Acesso Restrito</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; overflow-x: hidden; }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+        }
+        .orb-1 { animation: float 14s ease-in-out infinite alternate; }
+        .orb-2 { animation: float-reverse 18s ease-in-out infinite alternate; }
+        
+        @keyframes float { 0% { transform: translateY(0) scale(1); } 100% { transform: translateY(-30px) scale(1.05); } }
+        @keyframes float-reverse { 0% { transform: translateY(0) scale(1.05); } 100% { transform: translateY(30px) scale(1); } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        
+        .animate-fade-up { animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-scale-in { animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        .is-hidden { display: none !important; }
+        
+        .ai-example-box {
+            border-left: 4px solid #4f46e5;
+            background: #fefeff;
+            padding: 16px;
+            margin-top: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #3730a3;
+            font-style: italic;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+        }
+
+        .tab-active {
+            background-color: white;
+            color: #4f46e5;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .tab-inactive {
+            color: #64748b;
+            background-color: transparent;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 relative selection:bg-indigo-500 selection:text-white">
+
+    <!-- Orbes de Luz de Fundo -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+        <div class="orb-1 absolute top-[-10%] left-[-20%] w-[80vw] h-[80vw] rounded-full bg-indigo-200/30 blur-[120px]"></div>
+        <div class="orb-2 absolute bottom-[-10%] right-[-20%] w-[70vw] h-[70vw] rounded-full bg-fuchsia-200/30 blur-[120px]"></div>
+    </div>
+
+    <!-- ECRÃ DE LOGIN (GATE DE ACESSO) -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center px-4 relative z-50">
+        <div class="glass-card w-full max-w-md p-8 sm:p-10 rounded-[2.5rem] text-center animate-fade-up">
+            <div class="inline-flex items-center justify-center p-4 bg-indigo-600 rounded-2xl mb-6 shadow-xl shadow-indigo-200">
+                <i data-lucide="lock" class="w-8 h-8 text-white"></i>
+            </div>
+            <h1 class="text-3xl font-black text-slate-900 mb-2">Área Restrita</h1>
+            <p class="text-slate-500 font-medium mb-8">Insira a senha de acesso fornecida na sua compra para desbloquear a IA.</p>
+            
+            <div class="space-y-4">
+                <input type="password" id="password-input" 
+                    class="w-full px-6 py-4 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-center font-bold tracking-widest" 
+                    placeholder="••••••••">
+                <button onclick="checkPassword()" 
+                    class="w-full py-4 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg shadow-lg shadow-indigo-200 transition-all active:scale-95">
+                    Aceder à Plataforma
+                </button>
+                <p id="login-error" class="text-rose-500 font-bold text-sm is-hidden">Senha incorreta. Tente novamente.</p>
+            </div>
+            <p class="mt-8 text-xs text-slate-400 font-bold uppercase tracking-widest">Powered by TalentScore AI</p>
+        </div>
+    </div>
+
+    <!-- CONTEÚDO PRINCIPAL DO APP (ESCONDIDO INICIALMENTE) -->
+    <div id="app-content" class="is-hidden">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-16 max-w-6xl flex flex-col items-center min-h-screen">
+            
+            <header class="w-full flex flex-col lg:flex-row items-center justify-between gap-12 mb-16 animate-fade-up">
+                <div class="w-full lg:w-1/2 text-center lg:text-left flex flex-col items-center lg:items-start">
+                    <div class="inline-flex items-center justify-center p-3 sm:p-4 bg-white rounded-2xl mb-6 shadow-md border border-slate-100">
+                        <i data-lucide="brain-circuit" class="w-8 h-8 text-indigo-600"></i>
+                    </div>
+                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-900 via-indigo-700 to-fuchsia-700 mb-6 tracking-tight leading-tight">
+                        TalentScore AI
+                    </h1>
+                    <p class="text-base sm:text-lg text-slate-500 max-w-lg mb-8 font-medium leading-relaxed">
+                        A sua carreira otimizada por inteligência artificial. Analise o seu LinkedIn ou molde o seu Currículo para ser aprovado em qualquer sistema de recrutamento (ATS).
+                    </p>
+                    
+                    <div class="bg-white/60 p-2 rounded-2xl flex flex-col sm:flex-row gap-2 border border-slate-200 shadow-sm backdrop-blur-md w-full max-w-md lg:mx-0">
+                        <button id="tab-linkedin" onclick="setMode('linkedin')" class="flex-1 py-3 px-4 rounded-xl font-bold tab-active transition-all flex items-center justify-center gap-2 text-sm sm:text-base">
+                            <i data-lucide="linkedin" class="w-5 h-5"></i> LinkedIn
+                        </button>
+                        <button id="tab-curriculo" onclick="setMode('curriculo')" class="flex-1 py-3 px-4 rounded-xl font-bold tab-inactive transition-all flex items-center justify-center gap-2 text-sm sm:text-base">
+                            <i data-lucide="file-text" class="w-5 h-5"></i> Currículo
+                        </button>
+                    </div>
+                </div>
+
+                <div class="w-full lg:w-1/2 relative hidden sm:block">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-indigo-400 to-fuchsia-400 rounded-[2.5rem] transform rotate-3 scale-105 opacity-30 blur-lg"></div>
+                    <img src="https://images.unsplash.com/photo-1573164713988-8665fc963095?auto=format&fit=crop&w=1000&q=80" alt="Profissional" class="relative rounded-[2.5rem] shadow-2xl object-cover h-[350px] lg:h-[450px] w-full border-4 border-white/60" />
+                    <div class="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 flex items-center gap-4">
+                        <div class="bg-emerald-100 p-3 rounded-full"><i data-lucide="check-circle-2" class="w-6 h-6 text-emerald-600"></i></div>
+                        <div>
+                            <p class="text-xs text-slate-400 font-bold uppercase">Tecnologia</p>
+                            <p class="text-xl font-black text-slate-800">Llama-3.3 Pro</p>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="w-full max-w-4xl relative z-20">
+                <!-- SECTIONS DE CONTEÚDO ORIGINAIS -->
+                <section id="section-guide" class="glass-card rounded-[2rem] p-6 sm:p-8 mb-8 animate-fade-up">
+                    <h2 class="text-xl sm:text-2xl font-bold mb-6 flex items-center gap-3 text-slate-800">
+                        <div class="p-2 bg-indigo-100 text-indigo-600 rounded-xl"><i data-lucide="help-circle" class="w-5 h-5"></i></div>
+                        Como extrair o seu perfil?
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="flex flex-col p-5 bg-white/80 rounded-2xl border border-slate-100 shadow-sm">
+                            <span class="w-8 h-8 flex items-center justify-center bg-indigo-600 text-white font-bold rounded-full mb-3 text-sm">1</span>
+                            <p class="text-sm text-slate-700 leading-snug">Vá à página do seu perfil no LinkedIn.</p>
+                        </div>
+                        <div class="flex flex-col p-5 bg-white/80 rounded-2xl border border-slate-100 shadow-sm">
+                            <span class="w-8 h-8 flex items-center justify-center bg-indigo-600 text-white font-bold rounded-full mb-3 text-sm">2</span>
+                            <p class="text-sm text-slate-700 leading-snug">Clique no botão <span class="font-bold text-indigo-700">"Mais..."</span>.</p>
+                        </div>
+                        <div class="flex flex-col p-5 bg-white/80 rounded-2xl border border-slate-100 shadow-sm">
+                            <span class="w-8 h-8 flex items-center justify-center bg-indigo-600 text-white font-bold rounded-full mb-3 text-sm">3</span>
+                            <p class="text-sm text-slate-700 leading-snug">Selecione <span class="font-bold text-indigo-700">"Guardar como PDF"</span>.</p>
+                        </div>
+                        <div class="flex flex-col p-5 bg-white/80 rounded-2xl border border-slate-100 shadow-sm">
+                            <span class="w-8 h-8 flex items-center justify-center bg-indigo-600 text-white font-bold rounded-full mb-3 text-sm">4</span>
+                            <p class="text-sm text-slate-700 leading-snug">Submeta o ficheiro no campo abaixo.</p>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="section-upload" class="glass-card rounded-[2rem] p-6 sm:p-10 text-center animate-fade-up">
+                    <div id="job-desc-container" class="is-hidden mb-8 text-left w-full">
+                        <label class="flex items-center gap-2 font-bold text-slate-700 mb-3">
+                            <div class="p-1.5 bg-indigo-100 text-indigo-600 rounded-lg"><i data-lucide="briefcase" class="w-4 h-4"></i></div>
+                            Descrição da Vaga Alvo
+                        </label>
+                        <textarea id="job-desc-input" rows="4" class="w-full px-5 py-4 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-indigo-500/20 outline-none transition-all resize-none bg-white/90 text-slate-700" placeholder="Cole aqui os requisitos da vaga..."></textarea>
+                    </div>
+
+                    <input type="file" id="fileInput" accept="application/pdf" class="hidden" />
+
+                    <div id="error-container" class="is-hidden mb-8 p-4 bg-rose-50 rounded-2xl flex items-start gap-4 border border-rose-100 max-w-xl mx-auto">
+                        <i data-lucide="alert-circle" class="w-6 h-6 text-rose-500 shrink-0 mt-0.5"></i>
+                        <p id="error-message" class="text-rose-700 font-medium text-sm text-left"></p>
+                    </div>
+
+                    <div id="upload-stage" class="w-full relative group cursor-pointer" onclick="document.getElementById('fileInput').click()">
+                        <div class="w-full border-2 border-dashed border-slate-300 group-hover:border-indigo-500 bg-slate-50/70 rounded-[2rem] p-8 sm:p-12 transition-all">
+                            <div class="w-16 h-16 sm:w-20 mx-auto bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6"><i data-lucide="upload-cloud" class="w-8 h-8 text-indigo-500"></i></div>
+                            <h3 id="upload-title" class="text-xl sm:text-2xl font-bold text-slate-800 mb-2">Submeter Perfil PDF</h3>
+                            <p id="upload-subtitle" class="text-sm text-slate-500">Clique para carregar o currículo do seu dispositivo.</p>
+                        </div>
+                    </div>
+
+                    <div id="ready-stage" class="is-hidden w-full max-w-xl mx-auto bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-sm">
+                        <div class="flex items-center gap-4 mb-8 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
+                            <div class="p-3 bg-white text-indigo-600 rounded-xl shadow-sm"><i data-lucide="file-check-2" class="w-6 h-6"></i></div>
+                            <div class="text-left overflow-hidden">
+                                <p class="text-xs text-indigo-400 font-bold uppercase tracking-wider mb-1">Pronto a Analisar</p>
+                                <p id="file-name-display" class="font-bold text-slate-700 text-base truncate"></p>
+                            </div>
+                        </div>
+                        <button onclick="startAnalysis()" class="w-full py-4 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg shadow-lg transition-all active:scale-95">
+                            <i data-lucide="zap" class="w-5 h-5 inline mr-2"></i> <span id="btn-analyze-text">Iniciar Consultoria IA</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section id="section-loading" class="is-hidden glass-card p-10 sm:p-16 rounded-[2.5rem] text-center flex flex-col items-center">
+                    <div class="relative w-24 h-24 mb-8">
+                        <div class="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
+                        <div class="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
+                    </div>
+                    <h3 id="loading-text" class="text-xl font-black text-slate-800 mb-2">A preparar estratégia...</h3>
+                </section>
+
+                <section id="section-results" class="is-hidden space-y-6 sm:space-y-8 animate-fade-up">
+                    <div class="flex justify-end">
+                        <button onclick="resetProcess()" class="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i> Nova Análise
+                        </button>
+                    </div>
+
+                    <div class="glass-card p-6 sm:p-10 rounded-[2.5rem]">
+                        <div class="flex flex-col md:flex-row items-center gap-8">
+                            <div class="shrink-0 relative flex items-center justify-center w-36 h-36 sm:w-48">
+                                <div id="score-glow" class="absolute inset-0 rounded-full blur-xl opacity-40"></div>
+                                <svg class="transform -rotate-90 w-full h-full relative z-10" viewBox="0 0 140 140">
+                                    <circle cx="70" cy="70" r="60" stroke="currentColor" stroke-width="12" fill="transparent" class="text-slate-100" />
+                                    <circle id="score-circle-path" cx="70" cy="70" r="60" stroke="currentColor" stroke-width="12" fill="transparent" stroke-dasharray="377" stroke-dashoffset="377" class="stroke-indigo-500 transition-all duration-1000 ease-out" />
+                                </svg>
+                                <div class="absolute flex flex-col items-center justify-center z-20">
+                                    <span id="score-text" class="text-4xl font-black tracking-tighter text-indigo-600">0</span>
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1" id="score-label">Score</span>
+                                </div>
+                            </div>
+                            <div class="flex-1 text-center md:text-left">
+                                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold mb-4 border border-indigo-100">
+                                    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i> Concluído
+                                </div>
+                                <h3 class="text-2xl font-black text-slate-800 mb-3" id="summary-title">Análise Geral</h3>
+                                <p id="summary-text" class="text-slate-600 text-base leading-relaxed"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card p-6 sm:p-10 rounded-[2.5rem] border-t-4 border-t-indigo-600 bg-gradient-to-br from-white to-indigo-50/40">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                            <h3 class="text-xl font-bold text-slate-800" id="bio-title">Bio "Sobre" Sugerida</h3>
+                            <button onclick="copyBio()" id="btn-copy-bio" class="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-100 text-indigo-700 font-bold rounded-xl transition-all text-sm">
+                                <i data-lucide="copy" class="w-4 h-4" id="icon-copy-bio"></i> <span id="text-copy-bio">Copiar Texto</span>
+                            </button>
+                        </div>
+                        <div id="bio-container" class="bg-white/90 p-5 rounded-2xl border border-indigo-100 text-slate-700 whitespace-pre-wrap italic shadow-sm"></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="glass-card p-6 rounded-[2rem] border-t-4 border-t-emerald-400">
+                            <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="trending-up" class="w-5 h-5 text-emerald-600"></i> Pontos Fortes</h3>
+                            <ul id="strengths-list" class="space-y-3"></ul>
+                        </div>
+                        <div class="glass-card p-6 rounded-[2rem] border-t-4 border-t-amber-500">
+                            <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="edit-3" class="w-5 h-5 text-amber-600"></i> Melhorias</h3>
+                            <ul id="improvements-list" class="space-y-5"></ul>
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <footer class="w-full max-w-4xl mt-auto pt-16 pb-6 text-center text-slate-400 text-sm font-medium">
+                <p>&copy; TalentScore AI. Todos os direitos reservados.</p>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        let selectedFile = null;
+        let generatedBio = "";
+        let currentMode = 'linkedin'; 
+        const MASTER_PASSWORD = "TalentScore";
+        const GROQ_API_KEY = "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";
+
+        // LÓGICA DE SENHA
+        function checkPassword() {
+            const input = document.getElementById('password-input').value;
+            const error = document.getElementById('login-error');
+            if(input === MASTER_PASSWORD) {
+                document.getElementById('login-screen').classList.add('is-hidden');
+                document.getElementById('app-content').classList.remove('is-hidden');
+                lucide.createIcons();
+            } else {
+                error.classList.remove('is-hidden');
+                setTimeout(() => error.classList.add('is-hidden'), 3000);
+            }
+        }
+
+        // PERMITE ENTER NO INPUT DE SENHA
+        document.getElementById('password-input').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') checkPassword();
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.pdfjsLib) window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        });
+
+        function setMode(mode) {
+            currentMode = mode;
+            const tabLinkedIn = document.getElementById('tab-linkedin');
+            const tabCurriculo = document.getElementById('tab-curriculo');
+            const baseTabClasses = "flex-1 py-3 px-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-sm sm:text-base";
+
+            if(mode === 'linkedin') {
+                tabLinkedIn.className = `${baseTabClasses} tab-active`;
+                tabCurriculo.className = `${baseTabClasses} tab-inactive`;
+                document.getElementById('section-guide').classList.remove('is-hidden');
+                document.getElementById('job-desc-container').classList.add('is-hidden');
+                document.getElementById('upload-title').innerText = "Submeter Perfil PDF";
+                document.getElementById('btn-analyze-text').innerText = "Otimizar LinkedIn";
+            } else {
+                tabCurriculo.className = `${baseTabClasses} tab-active`;
+                tabLinkedIn.className = `${baseTabClasses} tab-inactive`;
+                document.getElementById('section-guide').classList.add('is-hidden');
+                document.getElementById('job-desc-container').classList.remove('is-hidden');
+                document.getElementById('upload-title').innerText = "Submeter Currículo (PDF)";
+                document.getElementById('btn-analyze-text').innerText = "Analisar Match Vaga";
+            }
+        }
+
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            selectedFile = e.target.files[0];
+            if (!selectedFile || selectedFile.type !== 'application/pdf') return;
+            document.getElementById('file-name-display').innerText = selectedFile.name;
+            document.getElementById('upload-stage').classList.add('is-hidden');
+            document.getElementById('ready-stage').classList.remove('is-hidden');
+        });
+
+        function showStage(stage) {
+            ['section-guide', 'section-upload', 'section-loading', 'section-results'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.classList.add('is-hidden');
+            });
+            if(stage === 'upload') {
+                if(currentMode === 'linkedin') document.getElementById('section-guide').classList.remove('is-hidden');
+                document.getElementById('section-upload').classList.remove('is-hidden');
+            } else {
+                document.getElementById(`section-${stage}`).classList.remove('is-hidden');
+            }
+        }
+
+        function resetProcess() {
+            selectedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('ready-stage').classList.add('is-hidden');
+            document.getElementById('upload-stage').classList.remove('is-hidden');
+            showStage('upload');
+        }
+
+        function copyBio() {
+            const textArea = document.createElement("textarea");
+            textArea.value = generatedBio;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            document.getElementById('text-copy-bio').innerText = 'Copiado!';
+            setTimeout(() => document.getElementById('text-copy-bio').innerText = 'Copiar Texto', 3000);
+        }
+
+        async function extractTextFromPDF(arrayBuffer) {
+            const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let fullText = "";
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                fullText += content.items.map(item => item.str).join(" ") + " ";
+            }
+            return fullText;
+        }
+
+        function animateScoreRing(targetScore) {
+            const scoreText = document.getElementById('score-text');
+            const scorePath = document.getElementById('score-circle-path');
+            const circumference = 377;
+            let color = targetScore >= 80 ? "emerald" : targetScore >= 60 ? "amber" : "rose";
+            scoreText.className = `text-4xl sm:text-5xl font-black tracking-tighter text-${color}-600`;
+            scorePath.setAttribute('class', `stroke-${color}-500 transition-all duration-1000 ease-out`);
+            document.getElementById('score-glow').className = `absolute inset-0 rounded-full blur-xl opacity-40 bg-${color}-400`;
+            let currentScore = 0;
+            const interval = setInterval(() => {
+                currentScore += Math.ceil((targetScore - currentScore) / 5);
+                if (currentScore >= targetScore) currentScore = targetScore;
+                scoreText.innerText = currentScore;
+                scorePath.style.strokeDashoffset = circumference - (currentScore / 100) * circumference;
+                if (currentScore === targetScore) clearInterval(interval);
+            }, 30);
+        }
+
+        async function startAnalysis() {
+            if (!selectedFile) return;
+            showStage('loading');
+            try {
+                const buffer = await selectedFile.arrayBuffer();
+                const text = await extractTextFromPDF(buffer);
+                let promptInstruction = "";
+                if (currentMode === 'linkedin') {
+                    promptInstruction = `Analise este perfil do LinkedIn e retorne ESTRITAMENTE um JSON: {"nota": 0-100, "resumo": "2 frases", "bioSugerida": "3 parágrafos otimizados SEO", "pontosFortes": ["ponto1", "ponto2", "ponto3"], "melhorias": [{"acao": "ordem direta", "exemplo": "como fazer"}]}`;
+                } else {
+                    const jobDesc = document.getElementById('job-desc-input').value.trim();
+                    promptInstruction = `Especialista ATS: Cruze currículo com a vaga (${jobDesc}) e retorne ESTRITAMENTE um JSON: {"nota": 0-100 Match, "resumo": "2 frases Fit", "bioSugerida": "Resumo profissional de topo", "pontosFortes": ["fit1", "fit2", "fit3"], "melhorias": [{"acao": "ajuste ATS", "exemplo": "texto exato"}]}`;
+                }
+
+                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
+                    body: JSON.stringify({
+                        model: "llama-3.3-70b-versatile",
+                        messages: [
+                            { role: "system", content: "You output ONLY valid JSON format." },
+                            { role: "user", content: `${promptInstruction}\n\nPERFIL:\n${text}` }
+                        ],
+                        response_format: { type: "json_object" },
+                        temperature: 0.2
+                    })
+                });
+
+                const responseData = await response.json();
+                let rawContent = responseData.choices[0].message.content;
+                let result = JSON.parse(rawContent.replace(/```json/gi, '').replace(/```/g, '').trim());
+
+                if (currentMode === 'linkedin') {
+                    document.getElementById('score-label').innerText = "Score LinkedIn";
+                    document.getElementById('bio-title').innerText = "Bio Sugerida";
+                } else {
+                    document.getElementById('score-label').innerText = "Match Vaga";
+                    document.getElementById('bio-title').innerText = "Resumo Sugerido";
+                }
+
+                generatedBio = result.bioSugerida;
+                document.getElementById('bio-container').innerText = generatedBio;
+                document.getElementById('summary-text').innerText = result.resumo;
+                
+                const stList = document.getElementById('strengths-list');
+                stList.innerHTML = '';
+                result.pontosFortes.forEach(item => {
+                    stList.innerHTML += `<li class="flex gap-3 items-start p-3 rounded-2xl bg-white/60 border border-slate-100 shadow-sm"><i data-lucide="check" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i><span class="text-sm text-slate-700">${item}</span></li>`;
+                });
+
+                const impList = document.getElementById('improvements-list');
+                impList.innerHTML = '';
+                result.melhorias.forEach(item => {
+                    impList.innerHTML += `
+                        <li class="flex flex-col gap-2 p-4 rounded-2xl bg-white/60 border border-slate-100 shadow-sm text-left">
+                            <div class="flex gap-3 items-start">
+                                <div class="p-1 bg-amber-500 rounded-full shrink-0"><i data-lucide="arrow-right" class="w-3 h-3 text-white"></i></div>
+                                <span class="text-sm text-slate-800 font-bold">${item.acao}</span>
+                            </div>
+                            <div class="ai-example-box text-xs">"${item.exemplo}"</div>
+                        </li>`;
+                });
+
+                showStage('results');
+                lucide.createIcons();
+                setTimeout(() => animateScoreRing(result.nota), 300);
+            } catch (err) {
+                document.getElementById('error-container').classList.remove('is-hidden');
+                document.getElementById('error-message').innerText = "Erro ao processar. Tente novamente.";
+                showStage('upload');
+            }
+        }
+    </script>
+</body>
+</html>
