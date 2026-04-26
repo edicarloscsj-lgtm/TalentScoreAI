@@ -406,10 +406,34 @@
 
                 const response = await fetch(PROXY_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(requestBody) });
                 const rawResponse = await response.text();
-                let result;
-                try { result = JSON.parse(rawResponse); } catch (e) { throw new Error("O servidor bloqueou a resposta."); }
                 
-                if (result.error) throw new Error(result.error);
+                let result;
+                try {
+                    const parsed = JSON.parse(rawResponse);
+                    
+                    if (parsed.error) throw new Error(parsed.error);
+                    
+                    // A MÁGICA DA CORREÇÃO OCORRE AQUI:
+                    // Se o backend devolver a resposta original da Groq em vez da JSON extraído
+                    if (parsed.choices && parsed.choices[0] && parsed.choices[0].message) {
+                        let aiContent = parsed.choices[0].message.content;
+                        // Limpeza de markdown de bloco de código JSON que pode quebrar a leitura
+                        aiContent = aiContent.replace(/```json/gi, '').replace(/```/g, '').trim();
+                        const startIdx = aiContent.indexOf('{');
+                        const endIdx = aiContent.lastIndexOf('}');
+                        if (startIdx !== -1 && endIdx !== -1) {
+                            aiContent = aiContent.substring(startIdx, endIdx + 1);
+                        }
+                        result = JSON.parse(aiContent);
+                    } else {
+                        // O backend já retornou o JSON extraído diretamente
+                        result = parsed;
+                    }
+                } catch (e) {
+                    if (e.message === "A IA falhou. Tente de novo.") throw e;
+                    throw new Error(e.message || "O servidor bloqueou ou a resposta da IA foi inválida.");
+                }
+                
                 if (result.nota === undefined) throw new Error("A IA falhou. Tente de novo.");
 
                 document.getElementById('summary-title').innerText = currentMode === 'curriculo' ? "Aderência à Vaga" : "Análise do Perfil";
